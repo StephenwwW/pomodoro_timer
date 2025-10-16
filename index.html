@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- The title will be set by JavaScript -->
+    <title>Pomodoro Timer</title>
+    <!-- Tone.js for sound generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <!-- Google Font for modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- CSS styles (equivalent to style.css) -->
+    <style>
+        :root {
+            /* Color Palette */
+            --primary-accent: #89b4fa; /* Soft Blue */
+            --secondary-accent: #cba6f7; /* Lavender */
+            --warning-accent: #f9e2af; /* Yellow for Stop */
+            --disabled-color: #585b70; /* Muted gray for disabled elements */
+
+            /* Page Background Colors */
+            --page-bg-light: #e6e9ef;
+            --page-bg-dusk: #6c7086;
+            --page-bg-midnight: #1e1e2e;
+            --page-bg-abyss: #11111b;
+
+            /* UI Surface Colors */
+            --surface-light: #eff1f5; /* Light theme surface */
+            --surface-latte: #dce0e8; /* Light theme surface */
+            --surface-macchiato: #313244; /* Dark theme surface */
+            --surface-abyss: #161622; /* Dark theme surface */
+
+            /* Text Colors */
+            --text-dark: #4c4f69;
+            --text-light: #cdd6f4;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--page-background, var(--page-bg-light)); /* Default to light */
+            transition: background-color 0.3s;
+        }
+
+        .container {
+            padding: 2.5rem;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 
+                inset 0 5px 10px rgba(0, 0, 0, 0.6),
+                inset 0 -5px 10px rgba(255, 255, 255, 0.1),
+                0 15px 35px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 90%;
+            max-width: 380px;
+            transition: background-color 0.3s, color 0.3s;
+            
+            /* Default Dark Theme styles */
+            background-color: var(--surface-macchiato);
+            color: var(--text-light);
+        }
+        
+        /* Light Theme for Container */
+        .container.light-theme {
+            background-color: var(--surface-light);
+            color: var(--text-dark);
+            box-shadow: 
+                inset 0 3px 6px rgba(0, 0, 0, 0.1),
+                inset 0 -3px 6px rgba(255, 255, 255, 0.5),
+                0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .container.light-theme h1,
+        .container.light-theme .control-group label {
+            color: var(--text-dark);
+        }
+        .container.light-theme #timer-display {
+            color: #1e66f5; /* A stronger blue for light theme */
+            text-shadow: none;
+        }
+        .container.light-theme #timer-display.break-active {
+            color: #7287fd; /* A different purple for light theme */
+        }
+        .container.light-theme select,
+        .container.light-theme input {
+            background-color: #e6e9ef;
+            color: var(--text-dark);
+            border-color: #bcc0cc;
+        }
+        .container.light-theme button {
+            background-color: #1e66f5;
+            color: #eff1f5;
+        }
+        .container.light-theme .custom-inputs span {
+            color: var(--text-dark);
+        }
+
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+
+        #timer-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 700;
+            margin: 1.5rem 0;
+            color: var(--primary-accent);
+            text-shadow: 0 0 10px rgba(137, 180, 250, 0.3);
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+        
+        #timer-display.break-active {
+            color: var(--secondary-accent);
+            text-shadow: 0 0 10px rgba(203, 166, 247, 0.4);
+        }
+
+        .controls {
+            margin-bottom: 2rem;
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            align-items: center;
+            row-gap: 1.25rem;
+            column-gap: 1rem;
+        }
+
+        .control-group {
+            display: contents;
+        }
+
+        .control-group label {
+            font-size: 1rem;
+            text-align: right;
+        }
+
+        .control-group select, .control-group input, .input-group {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .input-group input {
+            flex-grow: 1;
+        }
+        
+        .input-group span {
+            font-size: 0.9rem;
+        }
+
+        .control-group select, .control-group input {
+            background-color: #1e1e2e;
+            color: var(--text-light);
+            border: 1px solid #45475a;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-family: 'Roboto', sans-serif;
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        /* Custom Time Input Styles */
+        #custom-time-wrapper {
+            grid-column: 1 / -1; /* Span across both columns */
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .custom-inputs {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .custom-inputs input[type="number"] {
+            width: 70px;
+            text-align: center;
+        }
+        
+        select:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary-accent);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .button-group button {
+            flex-grow: 1;
+        }
+
+        button {
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            background-color: var(--primary-accent);
+            color: #1e1e2e;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        #start-button:hover { background-color: #a6e3a1; }
+        #pause-button:hover { background-color: var(--secondary-accent); }
+        #stop-button { background-color: var(--warning-accent); }
+        #stop-button:hover { background-color: #f38ba8; }
+
+        button:disabled {
+            background-color: var(--disabled-color);
+            color: #a6adc8;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- Modal Styles --- */
+        #completion-modal {
+            display: none;
+            position: fixed;
+            z-index: 10; left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            padding: 2rem;
+            border-radius: 20px; /* Match container */
+            border: none;
+            box-shadow: 
+                inset 0 5px 10px rgba(0, 0, 0, 0.6),
+                inset 0 -5px 10px rgba(255, 255, 255, 0.1),
+                0 15px 35px rgba(0, 0, 0, 0.3);
+            width: 80%; max-width: 350px;
+            text-align: center;
+            transition: background-color 0.3s, color 0.3s;
+            
+            /* Default Dark Theme for Modal */
+            background-color: var(--surface-macchiato);
+            color: var(--text-light);
+        }
+        
+        /* Light Theme for Modal */
+        .modal-content.light-theme {
+            background-color: var(--surface-light);
+            color: var(--text-dark);
+            box-shadow: 
+                inset 0 3px 6px rgba(0, 0, 0, 0.1),
+                inset 0 -3px 6px rgba(255, 255, 255, 0.5),
+                0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .modal-content.light-theme .close-button {
+            color: var(--text-dark);
+        }
+        .modal-content.light-theme .close-button:hover {
+            color: #1e66f5;
+        }
+
+        .close-button {
+            color: #a6adc8; float: right;
+            font-size: 28px; font-weight: bold;
+            cursor: pointer; transition: color 0.3s;
+        }
+        .close-button:hover { color: var(--primary-accent); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 data-lang="title">蕃茄鐘</h1>
+        
+        <div id="timer-display">25:00</div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="time-select" data-lang="selectTime">選擇時間：</label>
+                <select id="time-select">
+                    <optgroup data-lang="minutes" label="分鐘">
+                        <option value="600" data-lang-option="min_10">10 分</option>
+                        <option value="900" data-lang-option="min_15">15 分</option>
+                        <option value="1200" data-lang-option="min_20">20 分</option>
+                        <option value="1500" selected data-lang-option="min_25">25 分</option>
+                        <option value="1800" data-lang-option="min_30">30 分</option>
+                    </optgroup>
+                    <optgroup data-lang="seconds" label="秒">
+                        <option value="10" data-lang-option="sec_10">10 秒</option>
+                        <option value="15" data-lang-option="sec_15">15 秒</option>
+                        <option value="20" data-lang-option="sec_20">20 秒</option>
+                        <option value="25" data-lang-option="sec_25">25 秒</option>
+                        <option value="30" data-lang-option="sec_30">30 秒</option>
+                    </optgroup>
+                    <option value="custom" data-lang-option="custom">自定義...</option>
+                </select>
+            </div>
+            <!-- Custom Time Inputs -->
+            <div id="custom-time-wrapper">
+                <div class="custom-inputs">
+                    <input type="number" id="custom-minutes-input" min="0" value="5">
+                    <span data-lang="customMinutes">分</span>
+                    <input type="number" id="custom-seconds-input" min="0" max="59" value="0">
+                    <span data-lang="customSeconds">秒</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <label for="cycles-input" data-lang="cycles">循環次數：</label>
+                <input type="number" id="cycles-input" value="1" min="1">
+            </div>
+            <!-- Break Time Input -->
+            <div class="control-group">
+                <label for="break-time-input" data-lang="breakTime">休息時間：</label>
+                <div class="input-group">
+                    <input type="number" id="break-time-input" min="0" value="5">
+                    <span data-lang="breakSeconds">秒</span>
+                </div>
+            </div>
+            <!-- Sound Select -->
+            <div class="control-group">
+                <label for="sound-select" data-lang="soundSelect">提示聲音：</label>
+                <select id="sound-select">
+                    <option value="sci-fi" data-lang-option="sound_scifi">科幻</option>
+                    <option value="upbeat" data-lang-option="sound_upbeat">輕快</option>
+                    <option value="seaside" data-lang-option="sound_seaside">海邊</option>
+                    <option value="sporty" data-lang-option="sound_sporty">運動</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="lang-select" data-lang="language">語言：</label>
+                <select id="lang-select">
+                    <option value="zh-tw">中文 (TW)</option>
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="page-bg-select" data-lang="pageBg">頁面背景：</label>
+                <select id="page-bg-select">
+                    <option value="var(--page-bg-light)" data-lang-option="light">淺色</option>
+                    <option value="var(--page-bg-dusk)" data-lang-option="dusk">黃昏</option>
+                    <option value="var(--page-bg-midnight)" data-lang-option="midnight" selected>午夜</option>
+                    <option value="var(--page-bg-abyss)" data-lang-option="abyss">深淵</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="ui-bg-select" data-lang="uiBg">UI 背景：</label>
+                <select id="ui-bg-select">
+                    <option value="var(--surface-light)" data-is-light="true" data-lang-option="light">淺色</option>
+                    <option value="var(--surface-latte)" data-is-light="true" data-lang-option="latte">拿鐵</option>
+                    <option value="var(--surface-macchiato)" data-is-light="false" data-lang-option="macchiato" selected>瑪奇朵</option>
+                    <option value="var(--surface-abyss)" data-is-light="false" data-lang-option="abyss">深淵</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="start-button" data-lang="startButton">開始</button>
+            <button id="pause-button" data-lang="pauseButton" style="display: none;">暫停</button>
+            <button id="stop-button" data-lang="stopButton" style="display: none;">停止</button>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div id="completion-modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <p data-lang="modalMessage">所有循環已結束！</p>
+        </div>
+    </div>
+
+    <!-- JavaScript logic (equivalent to script.js) -->
+    <script>
+        // --- 1. DOM Element Selection ---
+        const container = document.querySelector('.container');
+        const timerDisplay = document.getElementById('timer-display');
+        const timeSelect = document.getElementById('time-select');
+        const customTimeWrapper = document.getElementById('custom-time-wrapper');
+        const customMinutesInput = document.getElementById('custom-minutes-input');
+        const customSecondsInput = document.getElementById('custom-seconds-input');
+        const cyclesInput = document.getElementById('cycles-input');
+        const breakTimeInput = document.getElementById('break-time-input');
+        const soundSelect = document.getElementById('sound-select');
+        const langSelect = document.getElementById('lang-select');
+        const pageBgSelect = document.getElementById('page-bg-select');
+        const uiBgSelect = document.getElementById('ui-bg-select');
+        const startButton = document.getElementById('start-button');
+        const pauseButton = document.getElementById('pause-button');
+        const stopButton = document.getElementById('stop-button');
+        const completionModal = document.getElementById('completion-modal');
+        const modalContent = completionModal.querySelector('.modal-content');
+        const closeButton = document.querySelector('.close-button');
+
+        // --- 2. Language Data and Switching Logic ---
+        const translations = {
+            'zh-tw': {
+                docTitle: '專注計時器', title: '蕃茄鐘', selectTime: '選擇時間：',
+                minutes: '分鐘', seconds: '秒', cycles: '循環次數：', language: '語言：',
+                pageBg: '頁面背景：', uiBg: 'UI 背景：',
+                startButton: '開始', resumeButton: '繼續', pauseButton: '暫停', stopButton: '停止',
+                modalMessage: '所有循環已結束！',
+                min_10: '10 分', min_15: '15 分', min_20: '20 分', min_25: '25 分', min_30: '30 分',
+                sec_10: '10 秒', sec_15: '15 秒', sec_20: '20 秒', sec_25: '25 秒', sec_30: '30 秒',
+                light: '淺色', dusk: '黃昏', midnight: '午夜', abyss: '深淵', latte: '拿鐵', macchiato: '瑪奇朵',
+                custom: '自定義...', customMinutes: '分', customSeconds: '秒',
+                breakTime: '休息時間：', breakSeconds: '秒',
+                soundSelect: '提示聲音：', sound_scifi: '科幻', sound_upbeat: '輕快', sound_seaside: '海邊', sound_sporty: '運動'
+            },
+            'en': {
+                docTitle: 'Focus Timer', title: 'Pomodoro Timer', selectTime: 'Select Time:',
+                minutes: 'Minutes', seconds: 'Seconds', cycles: 'Cycles:', language: 'Language:',
+                pageBg: 'Page BG:', uiBg: 'UI BG:',
+                startButton: 'Start', resumeButton: 'Resume', pauseButton: 'Pause', stopButton: 'Stop',
+                modalMessage: 'All cycles have finished!',
+                min_10: '10 min', min_15: '15 min', min_20: '20 min', min_25: '25 min', min_30: '30 min',
+                sec_10: '10 sec', sec_15: '15 sec', sec_20: '20 sec', sec_25: '25 sec', sec_30: '30 sec',
+                light: 'Light', dusk: 'Dusk', midnight: 'Midnight', abyss: 'Abyss', latte: 'Latte', macchiato: 'Macchiato',
+                custom: 'Custom...', customMinutes: 'min', customSeconds: 'sec',
+                breakTime: 'Break Time:', breakSeconds: 'sec',
+                soundSelect: 'Alert Sound:', sound_scifi: 'Sci-Fi', sound_upbeat: 'Upbeat', sound_seaside: 'Seaside', sound_sporty: 'Sporty'
+            },
+            'ja': {
+                docTitle: '集中タイマー', title: 'ポモドーロタイマー', selectTime: '時間を選択：',
+                minutes: '分', seconds: '秒', cycles: 'サイクル数：', language: '言語：',
+                pageBg: 'ページの背景:', uiBg: 'UIの背景:',
+                startButton: '開始', resumeButton: '再開', pauseButton: '一時停止', stopButton: '停止',
+                modalMessage: 'すべてのサイクルが終了しました！',
+                min_10: '10 分', min_15: '15 分', min_20: '20 分', min_25: '25 分', min_30: '30 分',
+                sec_10: '10 秒', sec_15: '15 秒', sec_20: '20 秒', sec_25: '25 秒', sec_30: '30 秒',
+                light: 'ライト', dusk: '夕暮れ', midnight: 'ミッドナイト', abyss: '深淵', latte: 'ラテ', macchiato: 'マキアート',
+                custom: 'カスタム...', customMinutes: '分', customSeconds: '秒',
+                breakTime: '休憩時間：', breakSeconds: '秒',
+                soundSelect: '通知音：', sound_scifi: 'サイファイ', sound_upbeat: '軽快', sound_seaside: '海辺', sound_sporty: 'スポーツ'
+            }
+        };
+
+        let currentLang = 'zh-tw';
+        function setLanguage(lang) {
+            currentLang = lang;
+            const langData = translations[lang];
+            document.title = langData.docTitle;
+            
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if (langData[key]) {
+                    if (el.tagName === 'OPTGROUP') el.label = langData[key];
+                    else el.textContent = langData[key];
+                }
+            });
+
+            document.querySelectorAll('[data-lang-option]').forEach(el => {
+                const key = el.getAttribute('data-lang-option');
+                if (langData[key]) el.textContent = langData[key];
+            });
+        }
+        
+        langSelect.addEventListener('change', (e) => setLanguage(e.target.value));
+
+        // --- 3. Core Timer Variables and State ---
+        let timerInterval = null;
+        let timeLeft = 0;
+        let totalCycles = 0;
+        let currentCycle = 0;
+        let initialCycles = 1;
+        let isPaused = false;
+        let isBreakTime = false;
+
+        // --- 4. Sound Synthesis (Tone.js) ---
+        const soundPlayers = {
+            'sci-fi': () => {
+                const synth = new Tone.FMSynth({
+                    harmonicity: 3.1, modulationIndex: 10,
+                    envelope: { attack: 0.01, decay: 0.2 },
+                    modulation: { type: "square" },
+                    modulationEnvelope: { attack: 0.01, decay: 0.1 }
+                }).toDestination();
+                const now = Tone.now();
+                synth.triggerAttackRelease("C5", "16n", now);
+                synth.triggerAttackRelease("G5", "16n", now + 0.1);
+            },
+            'upbeat': () => {
+                const synth = new Tone.Synth({
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.4 }
+                }).toDestination();
+                const now = Tone.now();
+                synth.triggerAttackRelease("G4", "16n", now);
+                synth.triggerAttackRelease("C5", "16n", now + 0.1);
+                synth.triggerAttackRelease("E5", "16n", now + 0.2);
+                synth.triggerAttackRelease("G5", "8n", now + 0.3);
+            },
+            'seaside': () => { // NEW: 水滴與迴響
+                const delay = new Tone.FeedbackDelay("8n", 0.7).toDestination();
+                const synth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.01, decay: 0.5, sustain: 0.1, release: 1 }
+                }).connect(delay);
+                synth.volume.value = -6;
+                synth.triggerAttackRelease('C6', '8n');
+            },
+            'sporty': () => { // NEW: 電子脈衝 (音量已調大)
+                const synth = new Tone.AMSynth({
+                    harmonicity: 1.5,
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 },
+                    modulationEnvelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.1 }
+                }).toDestination();
+                synth.volume.value = -1; // 從 -12 調大至 -8
+                const now = Tone.now();
+                synth.triggerAttackRelease("A5", "16n", now);
+                synth.triggerAttackRelease("A5", "16n", now + 0.1);
+                synth.triggerAttackRelease("A5", "16n", now + 0.2);
+            }
+        };
+
+        function playCycleEndSound() {
+            const selectedSound = soundSelect.value;
+            if (soundPlayers[selectedSound]) {
+                soundPlayers[selectedSound]();
+            }
+        }
+
+        // --- 5. Timer and UI Logic ---
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        function runTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft < 0) {
+                    playCycleEndSound();
+                    
+                    if (isBreakTime) { // Break just ended
+                        isBreakTime = false;
+                        timerDisplay.classList.remove('break-active');
+                        currentCycle++;
+                        cyclesInput.value = totalCycles - (currentCycle - 1);
+                        timeLeft = getSelectedTimeInSeconds();
+                    } else { // Work session just ended
+                        if (currentCycle >= totalCycles) {
+                            clearInterval(timerInterval);
+                            cyclesInput.value = 0;
+                            showCompletionModal();
+                            resetTimer();
+                            return;
+                        }
+                        isBreakTime = true;
+                        timerDisplay.classList.add('break-active');
+                        timeLeft = parseInt(breakTimeInput.value, 10) || 0;
+                    }
+                }
+                updateDisplay();
+            }, 1000);
+        }
+        
+        function getSelectedTimeInSeconds() {
+            if (timeSelect.value === 'custom') {
+                const minutes = parseInt(customMinutesInput.value, 10) || 0;
+                const seconds = parseInt(customSecondsInput.value, 10) || 0;
+                return (minutes * 60) + seconds;
+            }
+            return parseInt(timeSelect.value, 10);
+        }
+
+        function startTimer() {
+            if (isPaused) {
+                isPaused = false;
+                startButton.style.display = 'none';
+                pauseButton.style.display = 'inline-block';
+                runTimer();
+                return;
+            }
+            
+            if (Tone.context.state !== 'running') Tone.start();
+
+            startButton.style.display = 'none';
+            pauseButton.style.display = 'inline-block';
+            stopButton.style.display = 'inline-block';
+            [timeSelect, cyclesInput, langSelect, pageBgSelect, uiBgSelect, customMinutesInput, customSecondsInput, breakTimeInput, soundSelect].forEach(el => el.disabled = true);
+
+            totalCycles = parseInt(cyclesInput.value, 10);
+            initialCycles = totalCycles;
+            
+            if (totalCycles <= 0) {
+                resetTimer(); return;
+            }
+
+            currentCycle = 1;
+            isBreakTime = false;
+            timeLeft = getSelectedTimeInSeconds();
+            updateDisplay();
+            runTimer();
+        }
+
+        function pauseTimer() {
+            isPaused = true;
+            clearInterval(timerInterval);
+            pauseButton.style.display = 'none';
+            startButton.style.display = 'inline-block';
+            startButton.textContent = translations[currentLang].resumeButton;
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            isPaused = false;
+            resetTimer();
+        }
+
+        function resetTimer() {
+            [startButton, timeSelect, cyclesInput, langSelect, pageBgSelect, uiBgSelect, customMinutesInput, customSecondsInput, breakTimeInput, soundSelect].forEach(el => el.disabled = false);
+            
+            startButton.style.display = 'inline-block';
+            pauseButton.style.display = 'none';
+            stopButton.style.display = 'none';
+            startButton.textContent = translations[currentLang].startButton;
+
+            timerInterval = null;
+            isBreakTime = false;
+            timerDisplay.classList.remove('break-active');
+            timeLeft = getSelectedTimeInSeconds();
+            cyclesInput.value = initialCycles;
+            updateDisplay();
+        }
+        
+        function handleTimeChange() {
+            if (timeSelect.value === 'custom') {
+                customTimeWrapper.style.display = 'flex';
+            } else {
+                customTimeWrapper.style.display = 'none';
+            }
+            if (!timerInterval) {
+                timeLeft = getSelectedTimeInSeconds();
+                updateDisplay();
+            }
+        }
+        
+        // --- 6. Color Theme Logic ---
+        function handlePageBgChange(e) {
+            document.body.style.backgroundColor = e.target.value;
+        }
+
+        function handleUiBgChange(e) {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const isLight = selectedOption.getAttribute('data-is-light') === 'true';
+            
+            container.style.backgroundColor = e.target.value;
+            modalContent.style.backgroundColor = e.target.value; // Sync modal background
+            
+            if (isLight) {
+                container.classList.add('light-theme');
+                modalContent.classList.add('light-theme'); // Sync modal theme
+            } else {
+                container.classList.remove('light-theme');
+                modalContent.classList.remove('light-theme'); // Sync modal theme
+            }
+        }
+
+        // --- 7. Modal Logic ---
+        function showCompletionModal() {
+            completionModal.style.display = 'flex';
+        }
+
+        function hideCompletionModal() {
+            completionModal.style.display = 'none';
+        }
+
+        // --- 8. Event Listeners ---
+        startButton.addEventListener('click', startTimer);
+        pauseButton.addEventListener('click', pauseTimer);
+        stopButton.addEventListener('click', stopTimer);
+        timeSelect.addEventListener('change', handleTimeChange);
+        [customMinutesInput, customSecondsInput, breakTimeInput].forEach(el => el.addEventListener('change', handleTimeChange));
+        pageBgSelect.addEventListener('change', handlePageBgChange);
+        uiBgSelect.addEventListener('change', handleUiBgChange);
+        closeButton.addEventListener('click', hideCompletionModal);
+        window.addEventListener('click', (event) => {
+            if (event.target == completionModal) {
+                hideCompletionModal();
+            }
+        });
+
+        // --- 9. Initialization ---
+        function initialize() {
+            initialCycles = parseInt(cyclesInput.value, 10);
+            setLanguage(langSelect.value);
+            pageBgSelect.dispatchEvent(new Event('change'));
+            uiBgSelect.dispatchEvent(new Event('change'));
+            handleTimeChange(); // Check for custom time on load
+            resetTimer();
+        }
+
+
+
+        initialize();
+    </script>
+
+</body>
+</html>
+
+
