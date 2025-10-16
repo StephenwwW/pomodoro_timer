@@ -66,7 +66,7 @@ This project is released under the [MIT License](LICENSE).
 一款使用純 HTML、CSS 和 JavaScript 開發，具備主題客製化與合成音效提示的多國語言番茄鐘。
 \</div\>
 
-*查看 [English version](https://www.google.com/search?q=%23pomodoro-timer)*
+[View this document in English](#english)
 
 -----
 
