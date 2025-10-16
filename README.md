@@ -62,9 +62,9 @@ This project is released under the [MIT License](LICENSE).
 
 ## <a name="中文"></a>中文
 
-\<div align="center"\>
+<div align="center">
 一款使用純 HTML、CSS 和 JavaScript 開發，具備主題客製化與合成音效提示的多國語言番茄鐘。
-\</div\>
+</div>
 
 [View this document in English](#english)
 
